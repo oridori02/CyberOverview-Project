@@ -39,6 +39,14 @@ def send_arp_reply(responder, requester):
     update_arp_table(requester, responder["ip"], responder["mac"])
 
 
+# TODO: Implement ARP cache timeout (not done here for simplicity)
+# TODO: Implement ARP spoofing detection (not done here for simplicity)
+# TODO: Implement Gratuitous ARP (not done here for simplicity)
+# TODO: Implement spoofed ARP replies (not done here for simplicity)
+# TODO implement ARP spoofing attack simulation (not done here for simplicity)
+# TODO implement ARP spoofing attack detection (not done here for simplicity)
+
+
 
 # --- Simulation ---
 # Host1 asks for Host2
