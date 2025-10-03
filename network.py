@@ -3,6 +3,10 @@ Simulation of ARP requests and replies in a simple network.
 """
 
 
+# Maximum number of ARP entries per host (how big is the ARP table) it will be a FIFO cache
+MAX_ARP_ENTRIES = 10
+
+
 # Hosts in the network are represented as dictionaries
 host1 = {"name": "host1", "ip": "192.168.1.1", "mac": "AA:AA:AA:AA:AA:01", "arp_table": {}}
 host2 = {"name": "host2", "ip": "192.168.1.2", "mac": "AA:AA:AA:AA:AA:02", "arp_table": {}}
@@ -17,10 +21,24 @@ def send_arp_request(sender, target_ip, network):
         if host["ip"] == target_ip:
             send_arp_reply(host, sender)
 
+
+def update_arp_table(host, ip, mac):
+    # Prüfen, ob die IP schon drin ist
+    if ip in host["arp_table"]:
+        return  # nichts ändern
+    # Tabelle voll?
+    if len(host["arp_table"]) >= MAX_ARP_ENTRIES:
+        # Ältesten Eintrag entfernen (FIFO)
+        oldest_ip = list(host["arp_table"].keys())[0]
+        del host["arp_table"][oldest_ip]
+    # neuen Eintrag hinzufügen
+    host["arp_table"][ip] = mac
+
 def send_arp_reply(responder, requester):
     print(f"{responder['name']} replies to {requester['name']}")
-    # requester saves the IP->MAC mapping in its ARP table
-    requester["arp_table"][responder["ip"]] = responder["mac"]
+    update_arp_table(requester, responder["ip"], responder["mac"])
+
+
 
 # --- Simulation ---
 # Host1 asks for Host2
