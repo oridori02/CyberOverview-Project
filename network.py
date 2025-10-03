@@ -23,15 +23,15 @@ def send_arp_request(sender, target_ip, network):
 
 
 def update_arp_table(host, ip, mac):
-    # Prüfen, ob die IP schon drin ist
+    # Check if already present
     if ip in host["arp_table"]:
-        return  # nichts ändern
+        return  # do nothing if already present
     # Tabelle voll?
     if len(host["arp_table"]) >= MAX_ARP_ENTRIES:
-        # Ältesten Eintrag entfernen (FIFO)
+        # Remove the first inserted item (FIFO)
         oldest_ip = list(host["arp_table"].keys())[0]
         del host["arp_table"][oldest_ip]
-    # neuen Eintrag hinzufügen
+    # add new entry
     host["arp_table"][ip] = mac
 
 def send_arp_reply(responder, requester):
