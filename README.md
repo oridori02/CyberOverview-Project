@@ -10,11 +10,20 @@ This project aims to illustrate an Address Resolution Protocol (ARP) spoofing at
 - Intercept/redirect traffic (MITM): With IP forwarding enabled on the attacker, generate traffic from the target to the server and capture it to prove interception.
 - Run safely: Use an isolated Docker bridge.
 
+## Security Implications
+
+This lab demonstrates why:
+- Public WiFi networks are vulnerable to MITM attacks
+- ARP spoofing can bypass network segmentation
+- Encryption (HTTPS/VPN) is crucial on untrusted networks
+- Network monitoring for ARP anomalies is important
+
 ## References
 
-- Docker
-- Scapy docs
-- iproute2
+- [Docker Networking](https://docs.docker.com/network/)
+- [Scapy Documentation](https://scapy.readthedocs.io/)
+- [iproute2 Utilities](https://wiki.linuxfoundation.org/networking/iproute2)
+- [ARP Protocol RFC 826](https://tools.ietf.org/html/rfc826)
 
 ## Documentation of project
 
