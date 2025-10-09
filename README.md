@@ -1,4 +1,4 @@
-# ARP Spoofing Attack Lab Documentation
+# ARP Spoofing Lab Documentation
 
 ## Problem Statement
 
