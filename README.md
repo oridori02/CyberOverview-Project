@@ -61,7 +61,7 @@ The lab consists of three Docker containers connected via a custom bridge networ
 
 ## Documentation on testing the project
 
-1. Setup
+### Setup
 
 ```bash
 # Network creation
@@ -150,13 +150,13 @@ hasim@Hasim:~/compsec$ docker network inspect arplab
 ]
 ```
 
-1. Copy the script
+### Copy the script
 
 ```bash
 docker cp spoof.py attacker:/root/spoof.py
 ```
 
-1. Before the poisoning
+### Before the poisoning
 
 ```bash
 # On the target - create an ARP entry and display the initial MAC
@@ -167,14 +167,14 @@ docker exec -it target bash -lc 'ping -c1 10.10.10.10 || true; ip neigh show 10.
 
 This figure shows that the server has read the targets MAC address and that ping works normally before the attack.
 
-1. Run the spoofer
+### Run the spoofer
 
 ```bash
 docker exec -it attacker python3 /root/spoof.py 10.10.10.50 10.10.10.10 eth0
 # Keep it running until done with testing
 ```
 
-1. Verify poisoning
+### Verify poisoning
 
 ```bash
 docker exec -it target bash -lc 'ping -c1 10.10.10.10 || true; ip neigh show 10.10.10.10'
@@ -185,7 +185,7 @@ docker exec -it target bash -lc 'ping -c1 10.10.10.10 || true; ip neigh show 10.
 
 This photo shows before and after the arp spoofing script is running, the MAC address of the server now has the same MAC address as the attacker. The ping is showing ICMP redirect. The targets arp cache is infected, and the target thinks that the attacker is the server.
 
-1. Prove MITM
+### Prove MITM
 
 ```bash
 # In a terminal, run tcpdump in the attackers network
@@ -210,7 +210,7 @@ The second picture confirms a MITM attack, the tcpdump on attacker shows full TC
 
 The last picture is extra proof on the attackers logs that a GET request is terminated at the attacker.
 
-1. Restoration
+### Restoration
 
 Stop the spoofer with Ctrl+C
 
@@ -221,7 +221,7 @@ docker exec -it target bash -lc 'ip neigh flush all; ping -c1 10.10.10.10 || tru
 # Expected is that the MAC address is now restored
 ```
 
-1. Cleanup
+### Cleanup
 
 ```bash
 docker rm -f attacker target server
