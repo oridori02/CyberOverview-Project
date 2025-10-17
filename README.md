@@ -86,7 +86,7 @@ docker run -d --name server --hostname server \
 
 # Installing required packages
 docker exec -it attacker bash -lc 'apt-get update && apt-get install -y python3-scapy tcpdump iproute2 iputils-ping'
-docker exec -it target   bash -lc 'apt-get update && apt-get install -y iputils-ping iproute2 tcpdump curl'
+docker exec -it target   bash -lc 'apt-get update && apt-get install -y iputils-ping iproute2 tcpdump curl python3-scapy'
 docker exec -it server   bash -lc 'apt-get update && apt-get install -y python3 iproute2'
 
 # A simple HTTP-server on the server
