@@ -19,6 +19,8 @@ ARP_REQ_TTL = 10          # Time window to consider a reply 'on time' after our 
 IP_MAC_TTL = 900          # Learned IP→MAC TTL (seconds)
 TCP_TIMEOUT = 3           # Timeout for TCP SYN probe (seconds)
 CLEANUP_INTERVAL = 120    # How often to run the cleanup (seconds)
+EVAL_DELAY = 1.0       # seconds to wait after sending the outgoing request before evaluating
+DEBOUNCE_SEC = 0.8     # avoid scheduling multiple outgoing requests immediately
 
 LOCK = threading.Lock()   # lock to protect shared structures
 
@@ -56,11 +58,14 @@ def cleanup_tables():
 
 # Detection
 def add_arp_request(pkt):
-    """Record ARP requests and schedule evaluation after ARP_REQ_TTL."""
     if ARP in pkt:
         ip = pkt[ARP].pdst
         now = datetime.datetime.now()
         with LOCK:
+            last = ARP_REQ_TABLE.get(ip)
+            if last and (now - last).total_seconds() < 1:
+                # Duplicate ARP request within 1s — ignore it
+                return
             ARP_REQ_TABLE[ip] = now
         t = threading.Timer(ARP_REQ_TTL, evaluate_responders, args=(ip, now))
         t.daemon = True
@@ -68,7 +73,8 @@ def add_arp_request(pkt):
         log(f"[DEBUG] ARP request for {ip} recorded, evaluator scheduled in {ARP_REQ_TTL}s")
 
 def handle_arp_reply(pkt):
-    """Process an incoming ARP reply packet."""
+    """Process an incoming ARP reply packet. If no recent outgoing request exists,
+    generate a proper outgoing ARP request (host-like) and schedule full-cycle evaluation."""
     if not (ARP in pkt and Ether in pkt):
         log("[INFO] Malformed ARP packet received")
         return
@@ -82,15 +88,44 @@ def handle_arp_reply(pkt):
             ARP_RESP_SEEN[ip_src] = set()
         ARP_RESP_SEEN[ip_src].add(mac_src)
 
-    # if we already trusted this IP and MAC, update timestamp or raise alarm on change
-    if ip_src in IP_MAC_PAIRS:
-        known_mac, _ = IP_MAC_PAIRS[ip_src]
+    log(f"[DEBUG] ARP reply seen: {ip_src} is at {mac_src} (eth.src={pkt[Ether].src})")
+
+    # If we already trusted this IP and MAC, update timestamp or schedule verification on change
+    with LOCK:
+        current = IP_MAC_PAIRS.get(ip_src)
+
+    if current:
+        known_mac, _ = current
         if known_mac != mac_src:
             log(f"[WARNING] IP-MAC change detected for {ip_src}: {known_mac} -> {mac_src}")
+            # send half-cycle corroboration (as before) and schedule full-cycle evaluation
             spoof_detection(pkt)
+            schedule_fullcycle_evaluation(ip_src)
             return
+        # refresh trusted timestamp
         with LOCK:
             IP_MAC_PAIRS[ip_src] = (known_mac, datetime.datetime.now())
+        return
+
+    # No trusted mapping exists -> trigger outgoing host-like ARP request if no recent request
+    with LOCK:
+        recent_req = ip_src in ARP_REQ_TABLE and (datetime.datetime.now() - ARP_REQ_TABLE[ip_src]).total_seconds() <= ARP_REQ_TTL
+
+    if not recent_req:
+        try:
+            # Build a host-like ARP who-has with proper source IP/MAC (so it's an "outgoing" request)
+            src_ip = get_if_addr(conf.iface)
+            src_mac = get_if_hwaddr(conf.iface)
+            out_pkt = Ether(dst="ff:ff:ff:ff:ff:ff", src=src_mac) / ARP(op=1, hwsrc=src_mac, psrc=src_ip, pdst=ip_src)
+            sendp(out_pkt, iface=conf.iface, verbose=False)
+            log(f"[INFO] Sent outgoing ARP request for {ip_src} (host-like) to elicit replies")
+        except Exception as e:
+            log(f"[INFO] Error sending outgoing ARP request: {e}")
+
+        # schedule full-cycle evaluation
+        schedule_fullcycle_evaluation(ip_src)
+    else:
+        log(f"[DEBUG] Recent outgoing request exists for {ip_src}, waiting for its evaluator")
 
 def spoof_detection(pkt):
     if not (Ether in pkt and ARP in pkt):
@@ -104,7 +139,7 @@ def spoof_detection(pkt):
 
     if not has_recent:
         try:
-            send(ARP(op=1, pdst=ip_), verbose=False)
+            sendp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(op=1, pdst=ip_), iface=conf.iface, verbose=False)
             log(f"[INFO] Sent ARP request to {ip_} to corroborate (half-cycle)")
         except Exception as e:
             log(f"[INFO] Error sending corroborating ARP request: {e}")
@@ -141,7 +176,7 @@ def evaluate_responders(ip, ts):
             ip_hdr = IP(dst=ip)
             syn = TCP(sport=sport, dport=dport, flags="S", seq=random.randint(0, 0xFFFFFFFF))
             try:
-                resp = srp1(ether / ip_hdr / syn, timeout=TCP_TIMEOUT, verbose=False)
+                resp = srp1(ether / ip_hdr / syn, timeout=TCP_TIMEOUT, iface=conf.iface, verbose=False)
             except Exception as e:
                 log(f"[DEBUG] TCP probe error to {ip}:{dport} via {mac}: {e}")
                 resp = None
@@ -196,6 +231,19 @@ def sniff_replies_thread():
         sniff(filter='arp', lfilter=incoming_arp_reply, prn=handle_arp_reply, iface=conf.iface, store=0)
     except Exception as e:
         log(f"Reply sniffer error: {e}")
+
+
+def schedule_fullcycle_evaluation(ip, delay=EVAL_DELAY):
+    """Record synthetic outgoing request timestamp and schedule evaluate_responders(ip, ts)."""
+    now = datetime.datetime.now()
+    with LOCK:
+        last = ARP_REQ_TABLE.get(ip)
+        if last and (now - last).total_seconds() < DEBOUNCE_SEC:
+            return  # already scheduled recently
+        ARP_REQ_TABLE[ip] = now
+    t = threading.Timer(delay, evaluate_responders, args=(ip, now))
+    t.daemon = True
+    t.start()
 
 
 # Main
