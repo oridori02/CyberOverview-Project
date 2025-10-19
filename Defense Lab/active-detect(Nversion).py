@@ -74,7 +74,7 @@ def add_arp_request(pkt):
 
 def handle_arp_reply(pkt):
     """Process an incoming ARP reply packet. If no recent outgoing request exists,
-    generate a proper outgoing ARP request (host-like) and schedule full-cycle evaluation."""
+    generate a proper outgoing ARP request and schedule full-cycle evaluation."""
     if not (ARP in pkt and Ether in pkt):
         log("[INFO] Malformed ARP packet received")
         return
@@ -98,7 +98,7 @@ def handle_arp_reply(pkt):
         known_mac, _ = current
         if known_mac != mac_src:
             log(f"[WARNING] IP-MAC change detected for {ip_src}: {known_mac} -> {mac_src}")
-            # send half-cycle corroboration (as before) and schedule full-cycle evaluation
+            # send half-cycle corroboration and schedule full-cycle evaluation
             spoof_detection(pkt)
             schedule_fullcycle_evaluation(ip_src)
             return
@@ -144,9 +144,8 @@ def spoof_detection(pkt):
         except Exception as e:
             log(f"[INFO] Error sending corroborating ARP request: {e}")
 
-# ----------------------
+
 # Evaluator after ARP_REQ_TTL
-# ----------------------
 def evaluate_responders(ip, ts):
     """
     Evaluate responders after ARP_REQ_TTL.
