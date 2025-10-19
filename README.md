@@ -286,7 +286,7 @@ The last picture is extra proof on the attackers logs that a GET request is term
 
 ## For the active detection:
 
-Ensure that the spoofer is still running so that we have ARP packets inn the network to be captured.
+Ensure that the spoofer is still running so that we have ARP packets in the network to be captured.
 
 ### Copy the script
 
@@ -299,7 +299,7 @@ docker cp active-detect(Nversion).py target:/root/active-detect.py
 ```
 
 
-### Start the active detetction
+### Start the active detection
 
 ```bash
 docker exec -it target python3 /root/active-detect.py
