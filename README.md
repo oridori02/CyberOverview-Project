@@ -62,11 +62,8 @@ The lab consists of three Docker containers connected via a custom bridge networ
     - Attacker sends an ARP-reply to the target that says “10.10.10.10 (spoof ip) is on the attackers MAC address.
     - Target updates its ARP-cache to the attackers MAC address.
 - Man-in-the-middle
-    - When IP-forwarding is activated on the attacker the traffic between the target and the server is sent via the attacker
-    - This is proven with tcpdump on the attacker-
-- Detection
-    - We monitor for inconsistencies in the IP-MAC mappings of the machines,
-    - When found, we send own TCP-SYN packets to evaluate the correct mapping and identify spoofing.
+    - When IP-forwarding is activated on the attacker the traffic between the target and the server is sent via the attacker.
+    - This is proven with tcpdump on the attacker.
 - Restore
     - When the script is canceled, the targets MAC address gets restored to the servers true MAC.
 
