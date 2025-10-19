@@ -4,16 +4,20 @@
 
 This project aims to illustrate an Address Resolution Protocol (ARP) spoofing attack inside a fully controlled Docker network environment. The ARP protocol lacks authentication, which allows a malicious host to fabricate ARP replies and contaminate a victim’s ARP cache. In our setup the attacker continously broadcasts that the server’s IP address corresponds to the attacker’s MAC address. Furthermore, this causes the victim to route traffic to the attacker rather than the legitimate server. The attack is executed using the scapy library at Layer 2 by constructing Ethernet and ARP reply frames and periodically resending them to sustain the poisoning effect. When IP forwarding is disabled, this results in a denial of service, but if it is enabled, it facilitates man-in-the-middle interception and possible session hijacking. The success of the attack is verified by monitoring the victim’s ARP entry change to reflect the attacker’s MAC address and by capturing the redirected traffic on the attacker using tcpdump.
 
+
+
 ## Lab Objectives
 
 - Poison ARP cache: Show that the victim’s ARP entry for the entry changes to the attacker’s MAC address.
 - Intercept/redirect traffic (MITM): With IP forwarding enabled on the attacker, generate traffic from the target to the server and capture it to prove interception.
 - Run safely: Use an isolated Docker bridge.
+- Develop a mitigation strategy.
+- Implement and evaluate a proposed active detection framework.
 
 ## Security Implications
 
 This lab demonstrates why:
-- Public WiFi networks are vulnerable to MITM attacks
+- Public and private WiFi networks are vulnerable to MITM attacks
 - ARP spoofing can bypass network segmentation
 - Encryption (HTTPS/VPN) is crucial on untrusted networks
 - Network monitoring for ARP anomalies is important
@@ -24,6 +28,7 @@ This lab demonstrates why:
 - [Scapy Documentation](https://scapy.readthedocs.io/)
 - [iproute2 Utilities](https://wiki.linuxfoundation.org/networking/iproute2)
 - [ARP Protocol RFC 826](https://tools.ietf.org/html/rfc826)
+- [Detecting ARP Spoofing: An Active Technique] (https://www.researchgate.net/profile/Sukumar-Nandi-3/publication/221160823_Detecting_ARP_Spoofing_An_Active_Technique/links/0912f50bdc98054c75000000/Detecting-ARP-Spoofing-An-Active-Technique.pdf?origin=publication_detail&_tp=eyJjb250ZXh0Ijp7ImZpcnN0UGFnZSI6InB1YmxpY2F0aW9uIiwicGFnZSI6InB1YmxpY2F0aW9uRG93bmxvYWQiLCJwcmV2aW91c1BhZ2UiOiJwdWJsaWNhdGlvbiJ9fQ)
 
 ## Documentation of project
 
@@ -152,6 +157,8 @@ hasim@Hasim:~/compsec$ docker network inspect arplab
 
 ### Copy the script
 
+cd to src here first.
+
 ```bash
 docker cp spoof.py attacker:/root/spoof.py
 ```
@@ -210,9 +217,45 @@ The second picture confirms a MITM attack, the tcpdump on attacker shows full TC
 
 The last picture is extra proof on the attackers logs that a GET request is terminated at the attacker.
 
+
+## For the active detection:
+
+Ensure that the spoofer is still running!
+
+### Copy the script
+
+In another terminal
+
+cd to Defense Lab here first.
+
+```bash
+docker cp active-detect(Nversion).py target:/root/active-detect.py
+```
+
+
+### Start the active detetction
+
+```bash
+docker exec -it target python3 /root/active-detect.py
+# keep it running until done with testing
+```
+
+This script runs on the target machine and passivly detects if there is an ARP-spoofing attack going on. It sends a warning and updates the arp cache to the correct Mac address.
+
+Here, the attacker's MAC is: d2:fe:e6:c8:12:17
+The server's MAC is: f2:60:cc:cd:21:b3
+
+![image.png](images/AttackerFirst.png)
+![image.png](images/LegitimateFirst.png)
+
+The two picture show how the introduced detection tool works. When there are inconsistencies in the IP-MAC mappings seen in the network and on the target machine, it actively queries the claimed IP using ARP requests and TCP SYNs (and examines the replies).
+It compares responses against cached/expected MAC addresses; discrepancies indicate spoofing. The techniques enables us to identify the true MAC that is under attack (the server's MAC in this case which is then added to the tusted list).
+
+
 ### Restoration
 
 Stop the spoofer with Ctrl+C
+Stop the active detection with Ctrl+C
 
 On the target machine:
 
